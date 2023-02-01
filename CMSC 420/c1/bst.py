@@ -32,14 +32,23 @@ def dump(root: Node) -> str:
 # For the tree rooted at root, insert the given key and return the root node.
 # The key is guaranteed to not be in the tree.
 def insert(root: Node, key: int) -> Node:
-    # YOUR CODE GOES HERE.
+    #A new node is added at the leaf
+    if root is None:
+        return Node(key)
+    else :
+        if root.key == key:
+            return root
+        elif root.key < key:
+            root.rightchild = insert(root.rightchild, key)
+        else:
+            root.leftchild = insert(root.leftchild, key)
     return root
 
 # For the tree rooted at root, delete the given key and return the root node.
 # The key is guaranteed to be in the tree.
 # When replacement is necessary use the inorder successor.
 def delete(root: Node, key: int) -> Node:
-    # YOUR CODE GOES HERE.
+    
     return root
 
 # For the tree rooted at root, calculate the list of keys on the path from the root to the search key.
