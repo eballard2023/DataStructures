@@ -48,8 +48,34 @@ def insert(root: Node, key: int) -> Node:
 # The key is guaranteed to be in the tree.
 # When replacement is necessary use the inorder successor.
 def delete(root: Node, key: int) -> Node:
-    
-    return root
+    if root is None:
+        return root
+
+    #Case 1: key is less than root.key
+
+    if key < root.key:
+        root.leftchild = delete(root.leftchild, key)
+    elif key > root.key:
+        root.rightchild = delete(root.rightchild, key)
+    else:
+        if root.left is None:
+            temp = root.rightchild
+            root = None
+            return temp
+        elif root.right is None:
+            temp = root.leftchild
+            root = None
+            return temp
+        temp2 = min_node(root.rightchild)
+        root.key = temp2.key
+        root.rightchild = delete(root.rightchild, temp2.key)
+        return root
+        
+def min_node(root: Node) -> Node:
+    curr = root
+    while curr.leftchild is not None:
+        curr = curr.leftchild
+    return curr
 
 # For the tree rooted at root, calculate the list of keys on the path from the root to the search key.
 # Return the json stringified list.
