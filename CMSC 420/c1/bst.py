@@ -82,14 +82,44 @@ def min_node(root: Node) -> Node:
 # The key is guaranteed to be in the tree.
 def search(root: Node, search_key: int) -> str:
     # YOUR CODE GOES HERE.
+    curr = root
+    path_keys = []
+
+    while (curr.key != search_key):
+        path_keys.append(curr.key)
+
+        if search_key < curr.key:
+            curr = curr.leftchild
+        else:
+            curr = curr.rightchild
+    path_keys.append(search_key)
     # Then tweak the next line so it uses your list rather than None.
-    return(json.dumps(None))
+    return(json.dumps(path_keys))
 
 # For the tree rooted at root, dump the preorder traversal to a stringified JSON list and return.
 def preorder(root: Node) -> str:
+    preorder_path = []
+    curr = root
+    visitL = False
+    visitR = False
+    visited = False
+
+    while (curr.key != None):
+        preorder_path.append(curr)
+        visited = True
+
+        if (visitL == False):
+            curr = curr.leftchild
+            visitL = True
+
+        if (visitL == True and visitR == False):
+            curr = curr.rightchild
+            visitR = True
+        
+
     # YOUR CODE GOES HERE.
     # Then tweak the next line so it uses your list rather than None.
-    return(json.dumps(None))
+    return(json.dumps(preorder_path))
 
 # For the tree rooted at root, dump the inorder traversal to a stringified JSON list and return.
 def inorder(root: Node) -> str:
