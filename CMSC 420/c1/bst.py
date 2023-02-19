@@ -60,6 +60,9 @@ def delete(root: Node, key: int) -> Node:
     elif key > root.key:
         root.rightchild = delete(root.rightchild, key)
     else:
+        if root.leftchild is None and root.rightchild is None:
+            root = None
+            return root
         if root.leftchild is None:
             temp = root.rightchild
             root = None

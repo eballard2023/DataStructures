@@ -5,6 +5,5 @@ insert,2
 insert,4
 insert,6
 insert,8
-insert,9
-postorder
+delete,7
 dump
