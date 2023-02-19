@@ -32,6 +32,7 @@ def dump(root: Node) -> str:
 # For the tree rooted at root, insert the given key and return the root node.
 # The key is guaranteed to not be in the tree.
 def insert(root: Node, key: int) -> Node:
+    #Works!
     #A new node is added at the leaf
     if root is None:
         return Node(key)
@@ -41,6 +42,7 @@ def insert(root: Node, key: int) -> Node:
         elif root.key < key:
             root.rightchild = insert(root.rightchild, key)
         else:
+            
             root.leftchild = insert(root.leftchild, key)
     return root
 
@@ -58,16 +60,21 @@ def delete(root: Node, key: int) -> Node:
     elif key > root.key:
         root.rightchild = delete(root.rightchild, key)
     else:
-        if root.left is None:
+        if root.leftchild is None:
             temp = root.rightchild
             root = None
             return temp
-        elif root.right is None:
+            
+        elif root.rightchild is None:
             temp = root.leftchild
             root = None
             return temp
+            
+        
         temp2 = min_node(root.rightchild)
         root.key = temp2.key
+        
+       
         root.rightchild = delete(root.rightchild, temp2.key)
         return root
         
@@ -100,42 +107,68 @@ def search(root: Node, search_key: int) -> str:
 def preorder(root: Node) -> str:
     preorder_path = []
     curr = root
-    visitL = False
-    visitR = False
-    visited = False
+    stack = []
 
-    while (curr.key != None):
-        preorder_path.append(curr)
-        visited = True
-
-        if (visitL == False):
+    while curr or stack:
+        if curr:
+            preorder_path.append(curr.key)
+            stack.append(curr)
             curr = curr.leftchild
-            visitL = True
-
-        if (visitL == True and visitR == False):
+        else:
+            curr = stack.pop()
             curr = curr.rightchild
-            visitR = True
-        
 
-    # YOUR CODE GOES HERE.
-    # Then tweak the next line so it uses your list rather than None.
     return(json.dumps(preorder_path))
+
 
 # For the tree rooted at root, dump the inorder traversal to a stringified JSON list and return.
 def inorder(root: Node) -> str:
-    # YOUR CODE GOES HERE.
-    # Then tweak the next line so it uses your list rather than None.
-    return(json.dumps(None))
+    stack = []
+    result = []
+    curr = root
+    
+    while curr or stack:
+        while curr:
+            stack.append(curr)
+            curr = curr.leftchild
+            
+        curr = stack.pop()
+        result.append(curr.key)
+        curr = curr.rightchild
+        
+    return json.dumps(result)
+
 
 # For the tree rooted at root, dump the postorder traversal to a stringified JSON list and return.
 def postorder(root: Node) -> str:
-    # YOUR CODE GOES HERE.
-    # Then tweak the next line so it uses your list rather than None.
-    return(json.dumps(None))
+    if not root:
+        return "[]"
+
+    stack = []
+    result = []
+    prev = None
+
+    while root or stack:
+        while root:
+            stack.append(root)
+            root = root.leftchild
+
+        root = stack[-1]
+
+        if not root.rightchild or root.rightchild == prev:
+            result.append(root.key)
+            prev = root
+            root = None
+            stack.pop()
+        else:
+            root = root.rightchild
+
+    return json.dumps(result)
 
 # For the tree rooted at root, dump the BFT traversal to a stringified JSON list and return.
 # The DFT should traverse left-to-right.
 def bft(root: Node) -> str:
     # YOUR CODE GOES HERE.
     # Then tweak the next line so it uses your list rather than None.
-    return json.dumps(None)    
+    return json.dumps(None)
+
