@@ -61,8 +61,8 @@ def delete(root: Node, key: int) -> Node:
         root.rightchild = delete(root.rightchild, key)
     else:
         if root.leftchild is None and root.rightchild is None:
-            root = None
-            return root
+            return None
+            
         if root.leftchild is None:
             temp = root.rightchild
             root = None
@@ -79,8 +79,8 @@ def delete(root: Node, key: int) -> Node:
         
        
         root.rightchild = delete(root.rightchild, temp2.key)
-        return root
-        
+    return root
+
 def min_node(root: Node) -> Node:
     curr = root
     while curr.leftchild is not None:
@@ -171,7 +171,22 @@ def postorder(root: Node) -> str:
 # For the tree rooted at root, dump the BFT traversal to a stringified JSON list and return.
 # The DFT should traverse left-to-right.
 def bft(root: Node) -> str:
+    bft_path = []
+    queue = []
+
     # YOUR CODE GOES HERE.
+    queue.append(root)
+    while queue:
+        curr = queue.pop(0)
+        bft_path.append(curr.key)
+
+        if curr.leftchild:
+            queue.append(curr.leftchild)
+        if curr.rightchild:
+            queue.append(curr.rightchild)
+        
+
+
     # Then tweak the next line so it uses your list rather than None.
-    return json.dumps(None)
+    return json.dumps(bft_path)
 
