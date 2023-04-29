@@ -68,21 +68,39 @@ class KDtree():
 
     # Insert the Datum with the given code and coords into the tree.
     # The Datum with the given coords is guaranteed to not be in the tree.
-    def insert(self,point:tuple[int],code:str):
-        datum = Datum(coords=point, code=code)
-
-        if (self.root is None):
+    def insert(self, point: tuple[int], code: str):
+        datum = Datum(point, code)
+        if self.root is None:
             self.root = NodeLeaf([datum])
         else:
-            self.insert_aux(datum, self.root, 0)
-                
+            self.root = self._insert(self.root, datum, 0)
 
+    def _insert(self, node, datum: Datum, depth: int):
+        if isinstance(node, NodeLeaf):
+            node.data.append(datum)
+            if len(node.data) > self.m:
+                return self._split_leaf(node, depth)
+            else:
+                return node
 
-        
-        
+        axis = node.spread_splitindex
+        if datum.coords[axis] < node.spread_splitvalue:
+            node.leftchild = self._insert(node.leftchild, datum, depth + 1)
+        else:
+            node.rightchild = self._insert(node.rightchild, datum, depth + 1)
+        return node
 
-       
+    def _split_leaf(self, leaf: NodeLeaf, depth: int):
+        split_axis = depth % self.k
+        leaf.data.sort(key=lambda d: d.coords[split_axis])
+        split_value = leaf.data[self.m // 2].coords[split_axis]
 
+        left_data = leaf.data[:self.m // 2]
+        right_data = leaf.data[self.m // 2:]
+        left_child = NodeLeaf(left_data)
+        right_child = NodeLeaf(right_data)
+
+        return NodeInternal(split_axis, split_value, left_child, right_child)
     # Delete the Datum with the given point from the tree.
     # The Datum with the given point is guaranteed to be in the tree.
     def delete(self, point:tuple[int]):
@@ -143,82 +161,6 @@ class KDtree():
         # The following return line can probably be left alone unless you make changes in variable names.
         return(json.dumps({"leaveschecked":leaveschecked,"points":[datum.to_json() for datum in knnlist]}))
 
-    def insert_aux(self, datum: Datum, node, depth: int) -> None:
-        if isinstance(node, NodeLeaf):
-            if len(node.data) < self.m:
-                node.data.append(datum)
-            elif len(node.data) == self.m:
-                self.spread_split(datum, node, depth)
-        else:
-            axis = depth % self.k
-            if datum.coords[axis] <= node.spread_splitvalue:
-                self.insert_aux(datum, node.leftchild, depth + 1)
-            else:
-                self.insert_aux(datum, node.rightchild, depth + 1)
-
-    def spread_split(self, datum: Datum, node, depth: int) -> None:
-        def tie_break_key(d: Datum, axis: int, k: int) -> tuple:
-            return tuple(d.coords[(axis + i) % k] for i in range(1, k))
-
-        data = node.data + [datum]
-
-        if depth == 0:
-            axis = max(range(self.k), key=lambda axis: max(d.coords[axis] for d in data) - min(d.coords[axis] for d in data))
-        else:
-            axis = (depth - 1) % self.k
-
-        # Sort the points in the leaf according to the chosen coordinate with ties broken by the remaining coordinates in cycling order
-        data.sort(key=lambda d: (d.coords[axis],) + tie_break_key(d, axis, self.k))
-
-        # spread_split index
-        median_indx = len(data) // 2
-
-        # spread_split value
-        if len(data) % 2 == 0:
-            median_val = (data[median_indx - 1].coords[axis] + data[median_indx].coords[axis]) / 2
-        else:
-            median_val = float(data[median_indx].coords[axis])
-
-        # Everything to the left of the median
-        left = data[:median_indx]
-
-        # Everything to the right of the median
-        right = data[median_indx:]
-
-        left_leaf = NodeLeaf(left)
-        right_leaf = NodeLeaf(right)
-
-        new_node = NodeInternal(spread_splitindex=axis, spread_splitvalue=median_val, leftchild=left_leaf, rightchild=right_leaf)
-
-        if node is self.root:
-            self.root = new_node
-        else:
-            parent = self.parent_search(self.root, node, depth=0)
-
-            if parent.leftchild is node:
-                parent.leftchild = new_node
-            else:
-                parent.rightchild = new_node
-
-            
-
-
-
-    def parent_search(self, current_node, target_node, depth: int):
-        #Returns none if no parent, otherwise returns the parent!
-        if current_node is None:
-            return None
-
-        if (isinstance(current_node, NodeInternal) and
-            (current_node.leftchild is target_node or current_node.rightchild is target_node)):
-            return current_node
-
-        axis = depth % self.k
-
-        if target_node.coords[axis] <= current_node.spread_splitvalue:
-            return self.parent_search(current_node.leftchild, target_node, depth + 1)
-        else:
-            return self.parent_search(current_node.rightchild, target_node, depth + 1)
 
     
 
