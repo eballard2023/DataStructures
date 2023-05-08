@@ -55,8 +55,8 @@ class KDtree():
                 }
             else:
                 return {
-                    "spread_splitindex": node.spread_splitindex,
-                    "spread_splitvalue": node.spread_splitvalue,
+                    "splitindex": node.spread_splitindex,
+                    "splitvalue": node.spread_splitvalue,
                     "l": (_to_dict(node.leftchild)  if node.leftchild  is not None else None),
                     "r": (_to_dict(node.rightchild) if node.rightchild is not None else None)
                 }
@@ -79,7 +79,7 @@ class KDtree():
         if isinstance(node, NodeLeaf):
             node.data.append(datum)
             if len(node.data) > self.m:
-                return self._split_leaf(node, depth)
+                return self.spread_split(node, depth)
             else:
                 return node
 
@@ -90,65 +90,89 @@ class KDtree():
             node.rightchild = self._insert(node.rightchild, datum, depth + 1)
         return node
 
-    def _split_leaf(self, leaf: NodeLeaf, depth: int):
-        split_axis = depth % self.k
-        leaf.data.sort(key=lambda d: d.coords[split_axis])
-        split_value = leaf.data[self.m // 2].coords[split_axis]
+    def spread_split(self, leaf: NodeLeaf, depth: int):
+        split_axis, spread = self.max_spread(leaf.data)
 
-        left_data = leaf.data[:self.m // 2]
-        right_data = leaf.data[self.m // 2:]
+        
+       
+
+        leaf.data.sort(key=lambda datum: datum.coords[split_axis])
+
+        mid_index = len(leaf.data) // 2
+        if len(leaf.data) % 2 == 0:
+            split_value = float((leaf.data[mid_index - 1].coords[split_axis] + leaf.data[mid_index].coords[split_axis]) / 2)
+        else:
+            split_value = float(leaf.data[mid_index].coords[split_axis])
+       
+
+        left_data = leaf.data[:mid_index]
+        right_data = leaf.data[mid_index:]
         left_child = NodeLeaf(left_data)
         right_child = NodeLeaf(right_data)
 
         return NodeInternal(split_axis, split_value, left_child, right_child)
+
+
+
+        
+
+    def max_spread(self, data: List[Datum]):
+        max_spread = float('-inf')
+        split_axis = -1
+
+        for axis in range(self.k):
+            min_val = min(data, key=lambda d: d.coords[axis]).coords[axis]
+            max_val = max(data, key=lambda d: d.coords[axis]).coords[axis]
+            spread = max_val - min_val
+
+            if spread > max_spread:
+                max_spread = spread
+                split_axis = axis
+
+        return split_axis, max_spread
+
     # Delete the Datum with the given point from the tree.
     # The Datum with the given point is guaranteed to be in the tree.
-    def delete(self, point:tuple[int]):
+    def delete(self, point: tuple[int]):
         datum = Datum(coords=point, code=None)
-        node, parent, depth = self.delete_aux(datum, self.root, None, 0)
-        if node is not None:
-            if parent is None:
-                self.root = None
-            elif isinstance(parent.leftchild, NodeLeaf) and isinstance(parent.rightchild, NodeLeaf):
-                self.spread_merge(parent)
-            else:
-                if parent.leftchild is node:
-                    grandchild = parent.rightchild
-                else:
-                    grandchild = parent.leftchild
-                if parent is self.root:
-                    self.root = grandchild
-                else:
-                    grandparent = self.parent_search(self.root, parent, 0)
-                    if grandparent.leftchild is parent:
-                        grandparent.leftchild = grandchild
-                    else:
-                        grandparent.rightchild = grandchild
+        self.root, _ = self._delete(self.root, datum, 0)
 
-    def delete_aux(self, datum: Datum, node, parent, depth: int):
+    def _delete(self, node, datum: Datum, depth: int):
+        if node is None:
+            return None, False
+
         if isinstance(node, NodeLeaf):
-            if datum in node.data:
-                node.data.remove(datum)
-                if not node.data:
-                    return node, parent, depth
-                else:
-                    return None, parent, depth
-            else:
-                return None, parent, depth
-        else:
-            axis = depth % self.k
-            if datum.coords[axis] <= node.spread_splitvalue:
-                return self.delete_aux(datum, node.leftchild, node, depth + 1)
-            else:
-                return self.delete_aux(datum, node.rightchild, node, depth + 1)
+            for stored_datum in node.data:
+                if stored_datum.coords == datum.coords:
+                    node.data.remove(stored_datum)
+                    if not node.data:
+                        return None, True  # node becomes an empty leaf, delete it
+                    else:
+                        return node, False
+            return node, False
 
-    def spread_merge(self, node):
-        merged_data = node.leftchild.data + node.rightchild.data
-        merged_leaf = NodeLeaf(merged_data)
-        if node is self.root:
-            self.root = merged_leaf
+        axis = depth % self.k
+        if datum.coords[axis] < node.spread_splitvalue:
+            node.leftchild, deleted = self._delete(node.leftchild, datum, depth + 1)
         else:
-            grandparent = self.parent_search(self.root, node, 0)
+            node.rightchild, deleted = self._delete(node.rightchild, datum, depth + 1)
+
+        if deleted:
+            if node.leftchild is None:
+                return node.rightchild, True  # replace node with its right child
+            elif node.rightchild is None:
+                return node.leftchild, True  # replace node with its left child
+            else:
+                if isinstance(node.leftchild, NodeLeaf) and isinstance(node.rightchild, NodeLeaf):
+                    if len(node.leftchild.data) + len(node.rightchild.data) <= self.m:
+                        node.data = node.leftchild.data + node.rightchild.data
+                        node = NodeLeaf(node.data)
+                        return self.spread_split(node, depth), False
+                else:
+                    return node, False
+
+        return node, False
+
             
     # Find the k nearest neighbors to the point.
     def knn(self,k:int,point:tuple[int]) -> str:
