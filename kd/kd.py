@@ -2,6 +2,8 @@ from __future__ import annotations
 import json
 import math
 from typing import List
+from typing import List, Union
+import math
 
 # Datum class.
 # DO NOT MODIFY.
@@ -18,14 +20,14 @@ class Datum():
 # Internal node class.
 # DO NOT MODIFY.
 class NodeInternal():
-    def  __init__(self,
-                  spread_splitindex : int,
-                  spread_splitvalue : float,
-                  leftchild,
-                  rightchild):
-        self.spread_splitindex = spread_splitindex
-        self.spread_splitvalue = spread_splitvalue
-        self.leftchild  = leftchild
+    def __init__(self,
+        splitindex : int,
+        splitvalue : float,
+        leftchild,
+        rightchild):
+        self.splitindex = splitindex
+        self.splitvalue = splitvalue
+        self.leftchild = leftchild
         self.rightchild = rightchild
 
 # Leaf node class.
@@ -51,12 +53,13 @@ class KDtree():
         def _to_dict(node) -> dict:
             if isinstance(node,NodeLeaf):
                 return {
-                    "p": str([{'coords': datum.coords,'code': datum.code} for datum in node.data])
+                    "p": str([{'coords': datum.coords,'code': datum.code} for datum
+                    in node.data])
                 }
             else:
                 return {
-                    "splitindex": node.spread_splitindex,
-                    "splitvalue": node.spread_splitvalue,
+                    "spread_splitindex": node.spread_splitindex,
+                    "spread_splitvalue": node.spread_splitvalue,
                     "l": (_to_dict(node.leftchild)  if node.leftchild  is not None else None),
                     "r": (_to_dict(node.rightchild) if node.rightchild is not None else None)
                 }
@@ -83,8 +86,8 @@ class KDtree():
             else:
                 return node
 
-        axis = node.spread_splitindex
-        if datum.coords[axis] < node.spread_splitvalue:
+        axis = node.splitindex
+        if datum.coords[axis] < node.splitvalue:
             node.leftchild = self._insert(node.leftchild, datum, depth + 1)
         else:
             node.rightchild = self._insert(node.rightchild, datum, depth + 1)
@@ -133,46 +136,51 @@ class KDtree():
 
     # Delete the Datum with the given point from the tree.
     # The Datum with the given point is guaranteed to be in the tree.
-    def delete(self, point: tuple[int]):
+    def delete(self, point:tuple[int]):
         datum = Datum(coords=point, code=None)
-        self.root, _ = self._delete(self.root, datum, 0)
-
-    def _delete(self, node, datum: Datum, depth: int):
-        if node is None:
-            return None, False
+        node, parent, depth = self.delete_aux(datum, self.root, None, 0)
+        if node is not None:
+            if parent is None:
+                self.root = None
+            elif isinstance(parent.leftchild, NodeLeaf) and isinstance(parent.rightchild, NodeLeaf):
+                self.spread_merge(parent)
+            else:
+                if parent.leftchild is node:
+                    grandchild = parent.rightchild
+                else:
+                    grandchild = parent.leftchild
+                if parent is self.root:
+                    self.root = grandchild
+                else:
+                    grandparent = self.parent_search(self.root, parent, 0)
+                    if grandparent.leftchild is parent:
+                        grandparent.leftchild = grandchild
+                    else:
+                        grandparent.rightchild = grandchild
 
         if isinstance(node, NodeLeaf):
-            for stored_datum in node.data:
-                if stored_datum.coords == datum.coords:
-                    node.data.remove(stored_datum)
-                    if not node.data:
-                        return None, True  # node becomes an empty leaf, delete it
-                    else:
-                        return node, False
-            return node, False
-
-        axis = depth % self.k
-        if datum.coords[axis] < node.spread_splitvalue:
-            node.leftchild, deleted = self._delete(node.leftchild, datum, depth + 1)
-        else:
-            node.rightchild, deleted = self._delete(node.rightchild, datum, depth + 1)
-
-        if deleted:
-            if node.leftchild is None:
-                return node.rightchild, True  # replace node with its right child
-            elif node.rightchild is None:
-                return node.leftchild, True  # replace node with its left child
-            else:
-                if isinstance(node.leftchild, NodeLeaf) and isinstance(node.rightchild, NodeLeaf):
-                    if len(node.leftchild.data) + len(node.rightchild.data) <= self.m:
-                        node.data = node.leftchild.data + node.rightchild.data
-                        node = NodeLeaf(node.data)
-                        return self.spread_split(node, depth), False
+            if datum in node.data:
+                node.data.remove(datum)
+                if not node.data:
+                    return node, parent, depth
                 else:
-                    return node, False
+                    return None, parent, depth
+            else:
+                return None, parent, depth
+        else:
+            axis = depth % self.k
+            if datum.coords[axis] <= node.spread_splitvalue:
+                return self.delete_aux(datum, node.leftchild, node, depth + 1)
+            else:
+                return self.delete_aux(datum, node.rightchild, node, depth + 1)
 
-        return node, False
-
+    def spread_merge(self, node):
+        merged_data = node.leftchild.data + node.rightchild.data
+        merged_leaf = NodeLeaf(merged_data)
+        if node is self.root:
+            self.root = merged_leaf
+        else:
+            grandparent = self.parent_search(self.root, node, 0)
             
     # Find the k nearest neighbors to the point.
     def knn(self,k:int,point:tuple[int]) -> str:
@@ -181,65 +189,37 @@ class KDtree():
         # While recursing, count the number of leaf nodes visited while you construct the list.
         # The following lines should be replaced by code that does the job.
         leaveschecked = 0
-        knnlist = []
-        # The following return line can probably be left alone unless you make changes in variable names.
-        return(json.dumps({"leaveschecked":leaveschecked,"points":[datum.to_json() for datum in knnlist]}))
+        find(self.root, point)
+
+        return json.dumps({"leaveschecked": leaveschecked, "points": [datum.to_json() for datum in knnlist]})
 
 
-    
+
+
+
+
+
+
 
 
 def main():
-    k = 2
-    m = 4
-    tree = KDtree(k, m)
+        kdtree = KDtree(6, 2)
 
-    points_and_codes = [
-       ((9, 13), "MFT"),
-       ((14, 6), "QCJ"),
-       ((12, 0), "GCY"),
-       ((19, 14), "NQH"),
-       ((15, 10), "JYP"),
-       ((1, 3), "DLY"),
-       ((10, 7), "UXJ"),
-       ((8, 15), "UJB"),
-       ((17, 1), "UVV"),
-       ((18, 16), "JFX"),
-   ]
+        # Insert the points
+        kdtree.insert((1,9,12,8,1,3), "ZRD")
+        kdtree.insert((9,17,11,12,3,18), "YYJ")
+        kdtree.insert((0,11,16,0,18,16), "WCF")
+        kdtree.insert((8,13,1,16,5,13), "YIS")
+        kdtree.insert((17,16,10,5,12,14), "DTG")
+        kdtree.insert((2,0,7,18,16,7), "BPC")
+        kdtree.insert((5,8,2,3,4,6), "UOH")
+        kdtree.insert((6,3,13,19,6,17), "DEI")
+        kdtree.insert((11,5,5,1,9,4), "VKV")
+        kdtree.insert((4,6,6,15,8,1), "UHW")
 
-   
+        # Perform knn search
+        knn_result = kdtree.knn(1, (3,1,15,14,12,13))
+        print(knn_result)
 
-    for point, code in points_and_codes:
-        tree.insert(point, code)
-
-    print(tree.dump())
-if __name__ == "__main__":
-    main()
-
-
-
-
-'''{
-  "spread_splitindex": 1,
-  "spread_splitvalue": 10.0,
-  "l": {
-    "spread_splitindex": 0,
-    "spread_splitvalue": 12.0,
-    "l": {
-      "p": "[{'coords': (1, 3), 'code': 'DLY'}, {'coords': (10, 7), 'code': 'UXJ'}]"
-    },
-    "r": {
-      "p": "[{'coords': (12, 0), 'code': 'GCY'}, {'coords': (14, 6), 'code': 'QCJ'}, {'coords': (17, 1), 'code': 'UVV'}]"
-    }
-  },
-  "r": {
-    "spread_splitindex": 0,
-    "spread_splitvalue": 15.0,
-    "l": {
-      "p": "[{'coords': (8, 15), 'code': 'UJB'}, {'coords': (9, 13), 'code': 'MFT'}]"
-    },
-    "r": {
-      "p": "[{'coords': (15, 10), 'code': 'JYP'}, {'coords': (18, 16), 'code': 'JFX'}, {'coords': (19, 14), 'code': 'NQH'}]"
-    }
-  }
-}'''
+if __name__ == '__main__':
+            main()
